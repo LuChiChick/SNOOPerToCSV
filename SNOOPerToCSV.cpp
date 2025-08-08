@@ -269,10 +269,17 @@ int main(int argc, char *argv[])
                 {
                     double time = 0.0;
                     sscanf(time_str, "%lf", &time);
-                    timestamp += time / (1000 * 1000);
+
+                    // 处理时间戳
+                    if (strstr(time_str, "us"))
+                        timestamp += time / (1000 * 1000);
+                    else if (strstr(time_str, "ms"))
+                        timestamp += time / (1000);
+                    else if (strstr(time_str, "s"))
+                        timestamp += time;
                 }
 
-                printf("timestamp: %lf %s\n", timestamp, segment_buffer);
+                printf("timestamp: %lfs %s\n", timestamp, segment_buffer);
 
                 // 处理数值链表
                 value_node *target_value_node = value_list_head;
