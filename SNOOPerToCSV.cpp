@@ -116,18 +116,10 @@ typedef struct value_node_struct
 // 文件列表
 file_node *file_list_head = nullptr;
 value_node *value_list_head = nullptr;
-double timestamp = 0.0;
+double time_begin = 0.0;
 
 int main(int argc, char *argv[])
 {
-    // int argc = 4;
-    // char argv[4][100] = {
-    //     "awdawdawd",
-    //     "16v_input.txt",
-    //     "-t",
-    //     "-32.69",
-    // };
-
     // 处理指令输入
     for (int count = 1; count < argc; count++)
     {
@@ -140,7 +132,7 @@ int main(int argc, char *argv[])
 
             // 读取时间戳起始
             count++;
-            sscanf(argv[count], "%lf", &timestamp);
+            sscanf(argv[count], "%lf", &time_begin);
             continue;
         }
 
@@ -168,6 +160,7 @@ int main(int argc, char *argv[])
     file_node *target_file_node = file_list_head;
     while (target_file_node != nullptr)
     {
+        double timestamp = time_begin;
         // 打开相关文件
         FILE *input_file = nullptr;
         FILE *output_file = nullptr;
@@ -180,9 +173,16 @@ int main(int argc, char *argv[])
 
         char segment_buffer[1000] = {'\0'};
 
-        // 跳过第一行
-        f_getline(input_file, segment_buffer, sizeof(segment_buffer));
-        memset(segment_buffer, '\0', sizeof(segment_buffer));
+        // 跳过非数据行
+        while (true)
+        {
+            f_getline(input_file, segment_buffer, sizeof(segment_buffer));
+            if (segment_buffer[0] == '-')
+            {
+                f_seek_pre_line_begin(input_file);
+                break;
+            }
+        }
 
         // 处理首行数据
         {
