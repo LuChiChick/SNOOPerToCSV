@@ -33,24 +33,34 @@ int main(int argc, char *argv[])
         }
 
         // 其余输入作为文件输入
-        static file_node *target_node = nullptr;
-        if (file_list_head == nullptr)
         {
-            file_list_head = (file_node *)malloc(sizeof(file_node));
-            file_list_head->file_name_str = nullptr;
-            file_list_head->p_next = nullptr;
+            // 判定文件是否可以打开
+            FILE *tempfile = fopen(argv[count], "rb");
+            if (tempfile != nullptr)
+            {
+                static file_node *target_node = nullptr;
+                if (file_list_head == nullptr)
+                {
+                    file_list_head = (file_node *)malloc(sizeof(file_node));
+                    file_list_head->file_name_str = nullptr;
+                    file_list_head->p_next = nullptr;
 
-            target_node = file_list_head;
+                    target_node = file_list_head;
+                }
+                else
+                {
+                    target_node->p_next = (file_node *)malloc(sizeof(file_node));
+                    target_node = target_node->p_next;
+                    target_node->file_name_str = nullptr;
+                    target_node->p_next = nullptr;
+                }
+                target_node->file_name_str = argv[count];
+            }
+            else
+                printf("File: \"%s\" open failed.\n", argv[count]);
+
+            fclose(tempfile);
         }
-        else
-        {
-            target_node->p_next = (file_node *)malloc(sizeof(file_node));
-            target_node = target_node->p_next;
-            target_node->file_name_str = nullptr;
-            target_node->p_next = nullptr;
-        }
-        target_node->file_name_str = argv[count];
-        // printf("%s\n", argv[count]);
     }
 
     printf("\n\n");
@@ -65,9 +75,30 @@ int main(int argc, char *argv[])
         FILE *output_file = nullptr;
         input_file = fopen(target_file_node->file_name_str, "rb");
         {
-            char buffer[100] = {'\0'};
-            sprintf(buffer, "%s%s", target_file_node->file_name_str, ".csv");
+            // 分配输出文件名空间
+            size_t buffer_len = strlen(target_file_node->file_name_str) + 10;
+            char *buffer = (char *)malloc(buffer_len);
+            memset(buffer, '\0', buffer_len);
+
+            // 处理输出名称
+            {
+                sprintf(buffer, "%s", target_file_node->file_name_str);
+                char *p_file_extension = buffer + strlen(buffer);
+
+                // 退格到文件扩展名后方
+                while (p_file_extension != buffer && *p_file_extension != '.')
+                    p_file_extension--;
+
+                // 无扩展名文件
+                if (p_file_extension == buffer)
+                    sprintf(buffer + strlen(buffer), ".csv");
+                else
+                    sprintf(p_file_extension, ".csv");
+            }
+
+            // 打开输出文件并释放输出空间
             output_file = fopen(buffer, "wb");
+            free(buffer);
         }
 
         if (input_file == nullptr || output_file == nullptr)
@@ -218,10 +249,10 @@ int main(int argc, char *argv[])
                         timestamp += time;
                 }
 
+                // 此处不能太频繁打印，否则影响速度
                 line_count++;
                 if ((line_count % 10000) == 0)
                     progress_print(line_count, total_line, true);
-                // printf("timestamp: %lfs %s\n", timestamp, segment_buffer);
 
                 // 处理数值链表
                 value_node *target_value_node = value_list_head;
@@ -254,7 +285,16 @@ int main(int argc, char *argv[])
         }
 
         // 清理数据列表
+        if (value_list_head != nullptr)
         {
+            value_node *target_value_node = value_list_head;
+            while (target_value_node->p_next != nullptr)
+            {
+                value_node *to_be_free = target_value_node;
+                target_value_node = target_value_node->p_next;
+                free(to_be_free);
+            }
+            free(target_value_node);
         }
 
         target_file_node = target_file_node->p_next;
