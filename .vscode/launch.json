@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "[SNOOPerToCSV]构建并调试",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "project_debug_build_task", // 预构建脚本
+            "program": "${workspaceFolder}\\Build\\Debug\\SNOOPerToCSV.exe", // 调试目标
+            "args": [ // 附加参数
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}", // 工作目录
+            "environment": [],
+            // "console": "externalTerminal",
+        }
+    ]
+}

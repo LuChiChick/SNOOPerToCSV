@@ -1,3 +1,6 @@
+#include "Tool_Functions.hpp"
+#include "Global_Variables.hpp"
+
 extern "C"
 {
 #include "stdio.h"
@@ -6,117 +9,6 @@ extern "C"
 #include "stdint.h"
 #include "ctype.h"
 }
-
-// 行进到上一行起始位置
-size_t f_seek_pre_line_begin(FILE *file)
-{
-    int count = 0;
-
-    // 本身就在文件起始位置
-    if (ftell(file) == 0)
-        return 0;
-    // 本身在文件结尾
-    if (fgetc(file) == EOF)
-    {
-        // 移动到之前
-        do
-        {
-            fseek(file, -2, SEEK_CUR);
-            count--;
-        } while (ftell(file) != 0 && fgetc(file) != '\n');
-
-        return count;
-    }
-
-    // 其它情况返
-
-    // 移动到上一行的结尾处
-    while (ftell(file) != 0 && fgetc(file) != '\n')
-    {
-        fseek(file, -2, SEEK_CUR);
-        count--;
-    }
-
-    fseek(file, -2, SEEK_CUR);
-    count--;
-
-    // 移动到上上一行的结尾处
-    while (ftell(file) != 0 && fgetc(file) != '\n')
-    {
-        fseek(file, -2, SEEK_CUR);
-        count--;
-    }
-
-    return count;
-}
-
-// 读取一行
-size_t f_getline(FILE *file, char *buffer, size_t buffer_len)
-{
-    memset(buffer, '\0', buffer_len);
-    int count = 0;
-
-    while (true)
-    {
-        if (count >= buffer_len)
-        {
-            fseek(file, -count, SEEK_CUR);
-            memset(buffer, '\0', buffer_len);
-            return 0;
-        }
-
-        char ch = fgetc(file);
-
-        if (ch == EOF && count == 0)
-            return 0;
-        if (ch == '\n' || ch == EOF)
-        {
-            buffer[count] = ch;
-            return count + 1;
-        }
-
-        buffer[count] = ch;
-        count++;
-    }
-}
-
-// 16进制字符串转十进制数值（8字节）
-uint64_t hex_to_decimal(const char *str)
-{
-    uint64_t value = 0;
-
-    int len = strlen(str);
-    // 循环读取
-    for (int count = 0; count < len; count++)
-    {
-        value *= 16;
-        if (str[count] >= '0' && str[count] <= '9')
-            value += str[count] - '0';
-        else
-            value += toupper(str[count]) - 'A' + 10;
-    }
-    return value;
-}
-
-// 文件链表节点
-typedef struct file_node_struct
-{
-    const char *file_name_str = nullptr;
-    file_node_struct *p_next = nullptr;
-} file_node;
-
-// 数据列表
-typedef struct value_node_struct
-{
-    char value_name_str[100] = {'\0'};
-    uint64_t raw_value = 0x0000000000000000;
-    value_node_struct *p_next;
-} value_node;
-
-// 文件列表
-file_node *file_list_head = nullptr;
-value_node *value_list_head = nullptr;
-double time_begin = 0.0;
 
 int main(int argc, char *argv[])
 {
@@ -136,6 +28,11 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        // 处理格式串指令
+        {
+        }
+
+        // 其余输入作为文件输入
         static file_node *target_node = nullptr;
         if (file_list_head == nullptr)
         {
@@ -153,8 +50,10 @@ int main(int argc, char *argv[])
             target_node->p_next = nullptr;
         }
         target_node->file_name_str = argv[count];
-        printf("%s\n", argv[count]);
+        // printf("%s\n", argv[count]);
     }
+
+    printf("\n\n");
 
     // 遍历文件
     file_node *target_file_node = file_list_head;
@@ -171,7 +70,20 @@ int main(int argc, char *argv[])
             output_file = fopen(buffer, "wb");
         }
 
+        if (input_file == nullptr || output_file == nullptr)
+        {
+            target_file_node = target_file_node->p_next;
+            continue;
+        }
+
+        printf("Solving file: \"%s\"\n", target_file_node->file_name_str);
+        printf("----------------------------------------------------------------\n");
+        printf("%-40s %-16s %s\n", "Value Name", "Out Type", "ID");
+        printf("----------------------------------------------------------------\n");
+
         char segment_buffer[1000] = {'\0'};
+
+        size_t total_line;
 
         // 跳过非数据行
         while (true)
@@ -179,6 +91,7 @@ int main(int argc, char *argv[])
             f_getline(input_file, segment_buffer, sizeof(segment_buffer));
             if (segment_buffer[0] == '-')
             {
+                sscanf(segment_buffer + 1, "%zu", &total_line);
                 f_seek_pre_line_begin(input_file);
                 break;
             }
@@ -189,6 +102,7 @@ int main(int argc, char *argv[])
             // 分配数值链表节点
             value_list_head = (value_node *)malloc(sizeof(value_node));
             value_list_head->p_next = nullptr;
+            value_list_head->value_type_str = DEFAULT_VALUE_TYPE;
             value_list_head->raw_value = 0x0000000000000000;
             memset(value_list_head->value_name_str, '\0', sizeof(value_list_head->value_name_str));
 
@@ -205,7 +119,7 @@ int main(int argc, char *argv[])
             value_list_head->raw_value = hex_to_decimal(value_str);
         }
 
-        // 处理第一个数值循环
+        // 处理第一个数值循环记录
         {
             value_node *target_value_node = value_list_head;
             while (true)
@@ -222,24 +136,46 @@ int main(int argc, char *argv[])
                 // 完成回环
                 if (!strcmp(value_name_str, value_list_head->value_name_str))
                 {
-                    // 回转到文件的第二行
+                    // 回转到文件的数据行起始位置
                     memset(segment_buffer, '\0', sizeof(segment_buffer));
                     fseek(input_file, 0, SEEK_SET);
-                    f_getline(input_file, segment_buffer, sizeof(segment_buffer));
+                    // 跳过非数据行
+                    while (true)
+                    {
+                        f_getline(input_file, segment_buffer, sizeof(segment_buffer));
+                        if (segment_buffer[0] == '-')
+                        {
+                            sscanf(segment_buffer + 1, "%zu", &total_line);
+                            f_seek_pre_line_begin(input_file);
+                            break;
+                        }
+                    }
                     break;
                 }
 
-                // 未完成回环,记录新的类型
-                // 分配数值链表节点
+                // 未完成回环,分配数值链表节点
                 target_value_node->p_next = (value_node *)malloc(sizeof(value_node));
                 target_value_node = target_value_node->p_next;
                 target_value_node->p_next = nullptr;
+                target_value_node->value_type_str = DEFAULT_VALUE_TYPE;
                 target_value_node->raw_value = 0x0000000000000000;
                 memset(target_value_node->value_name_str, '\0', sizeof(target_value_node->value_name_str));
 
                 // 记录节点信息
                 strcpy(target_value_node->value_name_str, value_name_str);
                 target_value_node->raw_value = hex_to_decimal(value_str);
+            }
+        }
+
+        // 展示数据类型输出
+        {
+            value_node *target_value_node = value_list_head;
+            size_t value_count = 0;
+
+            while (target_value_node != nullptr)
+            {
+                printf("%-40s %-16s [%d]\n", target_value_node->value_name_str, target_value_node->value_type_str, value_count++);
+                target_value_node = target_value_node->p_next;
             }
         }
 
@@ -257,7 +193,10 @@ int main(int argc, char *argv[])
 
         // 循环处理数据
         {
+            printf("----------------------------------------------------------------\n");
+
             memset(segment_buffer, '\0', sizeof(segment_buffer));
+            size_t line_count = -1;
             while (f_getline(input_file, segment_buffer, sizeof(segment_buffer)) != 0)
             {
                 char value_name_str[100] = {'\0'};
@@ -279,7 +218,10 @@ int main(int argc, char *argv[])
                         timestamp += time;
                 }
 
-                printf("timestamp: %lfs %s\n", timestamp, segment_buffer);
+                line_count++;
+                if ((line_count % 10000) == 0)
+                    progress_print(line_count, total_line, true);
+                // printf("timestamp: %lfs %s\n", timestamp, segment_buffer);
 
                 // 处理数值链表
                 value_node *target_value_node = value_list_head;
@@ -290,8 +232,15 @@ int main(int argc, char *argv[])
                     if (!strcmp(value_name_str, target_value_node->value_name_str))
                         target_value_node->raw_value = hex_to_decimal(value_str);
 
-                    // 输出当前值
-                    fprintf(output_file, ",%d", target_value_node->raw_value + 0);
+                    // 特殊处理
+                    if (strstr(target_value_node->value_name_str, "wmrmeasured_speed"))
+                    {
+                        float *value = (float *)&(target_value_node->raw_value);
+                        fprintf(output_file, ",%f", *value);
+                    }
+                    else
+                        fprintf(output_file, ",%llu", target_value_node->raw_value);
+
                     target_value_node = target_value_node->p_next;
                 }
                 fprintf(output_file, "\n");
@@ -299,6 +248,13 @@ int main(int argc, char *argv[])
                 // 清理缓冲区
                 memset(segment_buffer, '\0', sizeof(segment_buffer));
             }
+
+            progress_print(line_count, total_line, true);
+            printf("\n\n\n");
+        }
+
+        // 清理数据列表
+        {
         }
 
         target_file_node = target_file_node->p_next;
