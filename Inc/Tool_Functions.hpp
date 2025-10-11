@@ -19,7 +19,13 @@ size_t f_getline(FILE *file, char *buffer, const size_t buffer_len);
 // 进度条打印
 void progress_print(size_t completed, size_t total, bool reflush);
 
-// 16进制字符串转十进制数值（8字节）
-uint64_t hex_to_decimal(const char *str);
+// 16进制字符串转有效无符号整数（8字节）
+uint64_t hex_to_value(const char *str);
+
+// 判定字符串是否全部为有效数字
+bool is_full_num(const char *str);
+
+// 十进制字符串转有效无符号整数（8字节）
+uint64_t str_to_value(const char *str);
 
 #endif

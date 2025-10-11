@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
             // 读取时间戳起始
             count++;
             sscanf(argv[count], "%lf", &time_begin);
-            printf("Timestamp begin: %lf(s).", time_begin);
+            printf("Timestamp begin: %lf(s).\n", time_begin);
             continue;
         }
 
@@ -84,6 +84,55 @@ int main(int argc, char *argv[])
                 printf("Warning: invalid format type \"%s\",skip.\n", argv[count + 2]);
                 count += 2;
                 continue;
+            }
+
+            // 添加到类型列表中
+            {
+                char *p_param = argv[count + 1];
+                int param_len = strlen(argv[count + 1]);
+                format_list_node *target_format_node = nullptr;
+                while (p_param - argv[count + 1] < param_len)
+                {
+                    // 分配空间
+                    if (format_list_head == nullptr)
+                    {
+                        format_list_head = (format_list_node *)malloc(sizeof(format_list_node));
+                        format_list_head->p_next = nullptr;
+                        format_list_head->target_numID = -1;
+                        memset(format_list_head->target_value_name_str, '\0', sizeof(format_list_head->target_value_name_str));
+                        format_list_head->value_type_str = DEFAULT_VALUE_TYPE;
+                        target_format_node = format_list_head;
+                    }
+                    else
+                    {
+                        target_format_node->p_next = (format_list_node *)malloc(sizeof(format_list_node));
+                        target_format_node = target_format_node->p_next;
+                        target_format_node->p_next = nullptr;
+                        target_format_node->target_numID = -1;
+                        memset(target_format_node->target_value_name_str, '\0', sizeof(target_format_node->target_value_name_str));
+                        target_format_node->value_type_str = DEFAULT_VALUE_TYPE;
+                    }
+
+                    char value_identification[VARIABLE_NAME_STR_LENGTH_MAX] = {'\0'};
+                    size_t id_count = 0;
+                    while (p_param - argv[count + 1] < param_len)
+                    {
+                        value_identification[id_count++] = *p_param;
+                        if (p_param[1] == ',')
+                        {
+                            p_param += 2;
+                            break;
+                        }
+                        p_param++;
+                    }
+
+                    // 判定名称orID顺序
+                    if (is_full_num(value_identification))
+                        target_format_node->target_numID = str_to_value(value_identification);
+                    else
+                        sprintf(target_format_node->target_value_name_str, value_identification);
+                    target_format_node->value_type_str = argv[count + 2];
+                }
             }
 
             count += 2;
@@ -172,7 +221,7 @@ int main(int argc, char *argv[])
         printf("%-40s %-16s %s\n", "Value Name", "Out Type", "ID");
         printf("----------------------------------------------------------------\n");
 
-        char segment_buffer[1000] = {'\0'};
+        char segment_buffer[SEGMENT_BUFF_LENGTH] = {'\0'};
 
         size_t total_line;
 
@@ -197,7 +246,7 @@ int main(int argc, char *argv[])
             value_list_head->raw_value = 0x0000000000000000;
             memset(value_list_head->value_name_str, '\0', sizeof(value_list_head->value_name_str));
 
-            char value_name_str[100] = {'\0'};
+            char value_name_str[VARIABLE_NAME_STR_LENGTH_MAX] = {'\0'};
             char value_str[100] = {'\0'};
             char time_str[100] = {'\0'};
 
@@ -207,7 +256,7 @@ int main(int argc, char *argv[])
             sscanf(segment_buffer, "%*s%*s%*s%*s%s%s%s", value_str, value_name_str, time_str);
             // 记录首个节点信息
             strcpy(value_list_head->value_name_str, value_name_str);
-            value_list_head->raw_value = hex_to_decimal(value_str);
+            value_list_head->raw_value = hex_to_value(value_str);
         }
 
         // 处理第一个数值循环记录
@@ -215,7 +264,7 @@ int main(int argc, char *argv[])
             value_node *target_value_node = value_list_head;
             while (true)
             {
-                char value_name_str[100] = {'\0'};
+                char value_name_str[VARIABLE_NAME_STR_LENGTH_MAX] = {'\0'};
                 char value_str[100] = {'\0'};
                 char time_str[100] = {'\0'};
 
@@ -254,18 +303,52 @@ int main(int argc, char *argv[])
 
                 // 记录节点信息
                 strcpy(target_value_node->value_name_str, value_name_str);
-                target_value_node->raw_value = hex_to_decimal(value_str);
+                target_value_node->raw_value = hex_to_value(value_str);
             }
         }
 
-        // 展示数据类型输出
+        // 展示数据类型输出及类型匹配
         {
             value_node *target_value_node = value_list_head;
-            size_t value_count = 0;
+            int value_count = 0;
 
             while (target_value_node != nullptr)
             {
-                printf("%-40s %-16s [%d]\n", target_value_node->value_name_str, target_value_node->value_type_str, value_count++);
+                // 查找是否由对应的类型列表
+                {
+                    format_list_node *target_format_node = format_list_head;
+                    while (target_format_node != nullptr)
+                    {
+                        // 检查对应的名称（宽松匹配）
+                        if ((target_format_node->target_value_name_str[0] != '\0') && (strstr(target_value_node->value_name_str, target_format_node->target_value_name_str) != nullptr))
+                        {
+                            target_value_node->value_type_str = target_format_node->value_type_str;
+                            break;
+                        }
+                        else if (value_count == target_format_node->target_numID)
+                        {
+                            // 数字ID仅生效一次，随后记录名称以适配批量处理文件时指定格式
+                            sprintf(target_format_node->target_value_name_str, target_value_node->value_name_str);
+                            target_format_node->target_numID = -1;
+                            target_value_node->value_type_str = target_format_node->value_type_str;
+                            break;
+                        }
+
+                        target_format_node = target_format_node->p_next;
+                    }
+
+                    // 一些预先标识的变量
+                    if (strstr(target_value_node->value_name_str, "wmrmeasured_speed") ||
+                        strstr(target_value_node->value_name_str, "wmrcontrol_signal") ||
+                        strstr(target_value_node->value_name_str, "tagetSpeed") ||
+                        strstr(target_value_node->value_name_str, "WinUp_PID") ||
+                        strstr(target_value_node->value_name_str, "WinDw_PID"))
+                    {
+                        target_value_node->value_type_str = "float";
+                    }
+                }
+
+                printf("%-40s %-16s [%02d]\n", target_value_node->value_name_str, target_value_node->value_type_str, value_count++);
                 target_value_node = target_value_node->p_next;
             }
         }
@@ -290,7 +373,7 @@ int main(int argc, char *argv[])
             size_t line_count = -1;
             while (f_getline(input_file, segment_buffer, sizeof(segment_buffer)) != 0)
             {
-                char value_name_str[100] = {'\0'};
+                char value_name_str[VARIABLE_NAME_STR_LENGTH_MAX] = {'\0'};
                 char value_str[100] = {'\0'};
                 char time_str[100] = {'\0'};
                 sscanf(segment_buffer, "%*s%*s%*s%*s%s%s%s", value_str, value_name_str, time_str);
@@ -321,21 +404,51 @@ int main(int argc, char *argv[])
                 {
                     // 更新对应的值
                     if (!strcmp(value_name_str, target_value_node->value_name_str))
-                        target_value_node->raw_value = hex_to_decimal(value_str);
+                        target_value_node->raw_value = hex_to_value(value_str);
 
-                    // 特殊处理
-                    if (strstr(target_value_node->value_name_str, "wmrmeasured_speed") ||
-                        strstr(target_value_node->value_name_str, "wmrcontrol_signal") ||
-                        strstr(target_value_node->value_name_str, "tagetSpeed") ||
-                        strstr(target_value_node->value_name_str, "WinUp_PID") ||
-                        strstr(target_value_node->value_name_str, "WinDw_PID"))
+                    // 按类型输出值
                     {
-                        float *value = (float *)&(target_value_node->raw_value);
-                        fprintf(output_file, ",%f", *value);
+                        // int8_t sbyte
+                        if (!strcmp(target_value_node->value_type_str, "sbyte") ||
+                            !strcmp(target_value_node->value_type_str, "int8_t"))
+                        {
+                            int8_t *value = (int8_t *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%d", *value);
+                        }
+                        // int16_t
+                        else if (!strcmp(target_value_node->value_type_str, "int16_t"))
+                        {
+                            int16_t *value = (int16_t *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%d", *value);
+                        }
+                        // int32_t int
+                        else if (!strcmp(target_value_node->value_type_str, "int32_t"))
+                        {
+                            int32_t *value = (int32_t *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%d", *value);
+                        }
+                        // int64_t
+                        else if (!strcmp(target_value_node->value_type_str, "int64_t"))
+                        {
+                            int64_t *value = (int64_t *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%lld", *value);
+                        }
+                        // float 类型
+                        else if (!strcmp(target_value_node->value_type_str, "float"))
+                        {
+                            float *value = (float *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%f", *value);
+                        }
+                        // double 类型
+                        else if (!strcmp(target_value_node->value_type_str, "float"))
+                        {
+                            double *value = (double *)&(target_value_node->raw_value);
+                            fprintf(output_file, ",%lf", *value);
+                        }
+                        // 其它类型全部按照uint输出
+                        else
+                            fprintf(output_file, ",%llu", target_value_node->raw_value);
                     }
-                    else
-                        fprintf(output_file, ",%llu", target_value_node->raw_value);
-
                     target_value_node = target_value_node->p_next;
                 }
                 fprintf(output_file, "\n");

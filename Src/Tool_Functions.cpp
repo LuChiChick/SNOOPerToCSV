@@ -122,8 +122,8 @@ void progress_print(size_t completed, size_t total, bool reflush)
     printf("          %d/%d  (%%%.2lf)", completed, total, p_percent * 100);
 }
 
-// 16进制字符串转十进制数值（8字节）
-uint64_t hex_to_decimal(const char *str)
+// 16进制字符串转有效无符号整数（8字节）
+uint64_t hex_to_value(const char *str)
 {
     uint64_t value = 0;
 
@@ -136,6 +136,32 @@ uint64_t hex_to_decimal(const char *str)
             value += str[count] - '0';
         else
             value += toupper(str[count]) - 'A' + 10;
+    }
+    return value;
+}
+
+// 判定字符串是否全部为有效数字
+bool is_full_num(const char *str)
+{
+    int len = strlen(str);
+    for (int count = 0; count < len; count++)
+        if (!isdigit(str[count]))
+            return false;
+    return true;
+}
+
+// 十进制字符串转有效无符号整数（8字节）
+uint64_t str_to_value(const char *str)
+{
+    uint64_t value = 0;
+
+    int len = strlen(str);
+    // 循环读取
+    for (int count = 0; count < len; count++)
+    {
+        value *= 10;
+        if (str[count] >= '0' && str[count] <= '9')
+            value += str[count] - '0';
     }
     return value;
 }
