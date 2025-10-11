@@ -18,18 +18,76 @@ int main(int argc, char *argv[])
         // 处理时间戳
         if (!strcmp(argv[count], "-t"))
         {
-            // 参数截至
-            if ((count + 1) > argc)
+            // 参数不足
+            if ((count + 1) >= argc)
+            {
+                printf("Warning: missing timestamp parameter,set to default (0.00s).\n");
                 continue;
+            }
+
+            // 非法输入
+            if (!((argv[count + 1][0] == '-' && isdigit(argv[count + 1][1])) || (isdigit(argv[count + 1][0]))))
+            {
+                printf("Warning: invalid timestamp parameter \"%s\",set to default (0.00s).\n", argv[count + 1]);
+                count++;
+                continue;
+            }
 
             // 读取时间戳起始
             count++;
             sscanf(argv[count], "%lf", &time_begin);
+            printf("Timestamp begin: %lf(s).", time_begin);
             continue;
         }
 
         // 处理格式串指令
+        if (!strcmp(argv[count], "-f"))
         {
+            // 参数不足
+            if ((count + 2) >= argc)
+            {
+                printf("Warning: missing format parameters,skip.\n");
+                continue;
+            }
+
+            // 非法输入参数1
+            if (argv[count + 1][0] == '-')
+            {
+                printf("Warning: invalid format parameters \"%s %s\",skip.\n", argv[count + 1], argv[count + 2]);
+                continue;
+            }
+
+            // 非法输入参数2
+            if (argv[count + 2][0] == '-')
+            {
+                printf("Warning: invalid format parameters \"%s %s\",skip.\n", argv[count + 1], argv[count + 2]);
+                count++;
+                continue;
+            }
+
+            // 非法的类型输入
+            if (!(!strcmp(argv[count + 2], "uint") ||
+                  !strcmp(argv[count + 2], "ubyte") ||
+                  !strcmp(argv[count + 2], "uint8_t") ||
+                  !strcmp(argv[count + 2], "uint16_t") ||
+                  !strcmp(argv[count + 2], "uint32_t") ||
+                  !strcmp(argv[count + 2], "uint64_t") ||
+                  !strcmp(argv[count + 2], "int") ||
+                  !strcmp(argv[count + 2], "sbyte") ||
+                  !strcmp(argv[count + 2], "int8_t") ||
+                  !strcmp(argv[count + 2], "int16_t") ||
+                  !strcmp(argv[count + 2], "int32_t") ||
+                  !strcmp(argv[count + 2], "int64_t") ||
+                  !strcmp(argv[count + 2], "float") ||
+                  !strcmp(argv[count + 2], "double")))
+            {
+                printf("Warning: invalid format type \"%s\",skip.\n", argv[count + 2]);
+                count += 2;
+                continue;
+            }
+
+            count += 2;
+            continue;
         }
 
         // 其余输入作为文件输入
@@ -55,6 +113,8 @@ int main(int argc, char *argv[])
                     target_node->p_next = nullptr;
                 }
                 target_node->file_name_str = argv[count];
+
+                printf("File: \"%s\" open succeed.\n", argv[count]);
             }
             else
                 printf("File: \"%s\" open failed.\n", argv[count]);
@@ -264,7 +324,11 @@ int main(int argc, char *argv[])
                         target_value_node->raw_value = hex_to_decimal(value_str);
 
                     // 特殊处理
-                    if (strstr(target_value_node->value_name_str, "wmrmeasured_speed"))
+                    if (strstr(target_value_node->value_name_str, "wmrmeasured_speed") ||
+                        strstr(target_value_node->value_name_str, "wmrcontrol_signal") ||
+                        strstr(target_value_node->value_name_str, "tagetSpeed") ||
+                        strstr(target_value_node->value_name_str, "WinUp_PID") ||
+                        strstr(target_value_node->value_name_str, "WinDw_PID"))
                     {
                         float *value = (float *)&(target_value_node->raw_value);
                         fprintf(output_file, ",%f", *value);
