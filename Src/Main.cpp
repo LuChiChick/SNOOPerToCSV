@@ -12,6 +12,13 @@ extern "C"
 
 int main(int argc, char *argv[])
 {
+    printf("\n\n");
+    printf("SNOOPerToCSV Ver2.0\n\n");
+    printf("Auther: LuChiChick\n");
+    printf("%s\n%s\n%s\n\n", "Open source links:",
+           "         ├─Github:              https://github.com/LuChiChick/SNOOPerToCSV",
+           "         └─Personal Git System: https://git.luchichick.cn/LuChiChick/SNOOPerToCSV");
+
     // 处理指令输入
     for (int count = 1; count < argc; count++)
     {
@@ -29,7 +36,6 @@ int main(int argc, char *argv[])
             if (!((argv[count + 1][0] == '-' && isdigit(argv[count + 1][1])) || (isdigit(argv[count + 1][0]))))
             {
                 printf("Warning: invalid timestamp parameter \"%s\",set to default (0.00s).\n", argv[count + 1]);
-                count++;
                 continue;
             }
 
@@ -479,5 +485,35 @@ int main(int argc, char *argv[])
         fclose(output_file);
     }
 
-    return 0;
+    // 清理类型列表
+    if (format_list_head != nullptr)
+    {
+        format_list_node *target_format_node = format_list_head;
+        while (target_format_node->p_next != nullptr)
+        {
+            format_list_node *to_be_free = target_format_node;
+            target_format_node = target_format_node->p_next;
+            free(to_be_free);
+        }
+        free(target_format_node);
+    }
+
+    // 无输入文件时直接退出
+    if (file_list_head == nullptr)
+    {
+        printf("No input files,exit.\n");
+        return -1;
+    }
+    else
+    {
+        // 清理文件列表后退出
+        file_node *target_file_node = file_list_head;
+        while (target_file_node->p_next != nullptr)
+        {
+            file_node *to_be_free = target_file_node;
+            target_file_node = target_file_node->p_next;
+            free(to_be_free);
+        }
+        return 0;
+    }
 }
