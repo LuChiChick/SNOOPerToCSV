@@ -94,9 +94,11 @@ int main(int argc, char *argv[])
 
             // 添加到类型列表中
             {
+                // 静态列表指针，支持多段格式串输入
+                static format_list_node *target_format_node = nullptr;
+
                 char *p_param = argv[count + 1];
                 int param_len = strlen(argv[count + 1]);
-                format_list_node *target_format_node = nullptr;
                 while (p_param - argv[count + 1] < param_len)
                 {
                     // 分配空间
