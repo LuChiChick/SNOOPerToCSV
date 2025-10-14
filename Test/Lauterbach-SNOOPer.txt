@@ -1,0 +1,10 @@
+B::SNOOPer.List
+_____record|run|address_____|cycle__|data____________|symbol_________________________|ti.back
+-0000000007| 0|   D:FE537DF0 snoop               0804 .qn\m_IoHwAbDirectIDC_GetAdcRaw
+-0000000006| 0|   D:FE53A4A0 snoop               3236 .PinchCtrlZCT\gVR_BatVoltageVal   68.880us
+-0000000005| 0|   D:FE537DF0 snoop               0804 .qn\m_IoHwAbDirectIDC_GetAdcRaw   69.820us
+-0000000004| 0|   D:FE53A4A0 snoop               3236 .PinchCtrlZCT\gVR_BatVoltageVal   64.180us
+-0000000003| 0|   D:FE537DF0 snoop               0803 .qn\m_IoHwAbDirectIDC_GetAdcRaw   72.830us
+-0000000002| 0|   D:FE53A4A0 snoop               3236 .PinchCtrlZCT\gVR_BatVoltageVal   65.370us
+-0000000001| 0|   D:FE537DF0 snoop               0804 .qn\m_IoHwAbDirectIDC_GetAdcRaw   68.100us
+T0000000000| 0|   D:FE53A4A0 snoop               3236 .PinchCtrlZCT\gVR_BatVoltageVal   64.480us
