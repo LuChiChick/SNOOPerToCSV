@@ -29,7 +29,7 @@ SNOOPerToCSV.exe AAA.txt -t -1.2 -f Voltage float
 `<identification>` 标识变量的方式，除了上述的子串名识别外，还可以使用ID进行匹配，这个ID会在你进行生成时输出到终端，例如上面的图片终端中有16个ID（劳特巴赫至多支持16个变量采样），此外也可以使用识别串同时指定多个变量，例如将名称中含有 `Voltage` 的条目和ID为11的条目输出为单浮点类型，你可以使用如下指令：
 
 ```shell
-SNOOPerToCSV.exe AAA.txt -t -1.2 -f Voltage,15 float
+SNOOPerToCSV.exe AAA.txt -t -1.2 -f Voltage,11 float
 ```
 
 即所谓识别串就是将子串名或ID以逗号（英文逗号）分隔的连续字符串作为 `<identification>` 输入；  
